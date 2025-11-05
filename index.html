@@ -1,244 +1,51 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>AI Scratch Coder v0.3</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <style>
-        body { font-family: sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: auto; background-color: #f4f4f4; }
-        h1 { color: #0275d8; }
-        textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
-        button { background-color: #0275d8; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px; }
-        button:hover { background-color: #025aa5; }
-        .example { background-color: #e9ecef; padding: 15px; border-radius: 5px; margin-top: 20px; }
-        .example p { margin: 0; }
-        .example code { color: #c7254e; background-color: #f9f2f4; padding: 2px 4px; border-radius: 3px; }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - BloxIt</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <div class="login-container">
+        <div class="login-card">
+            
+            <h1 class="logo">BLOXIT</h1>
+            <p class="welcome-message">Welcome back to the arena.</p>
 
-    <h1>AI Scratch Coder - Step 3: A Scalable System</h1>
-    <p>Type your command in the box below. The new system can understand more blocks and structure.</p>
-    
-    <textarea id="promptInput" rows="5" placeholder="e.g., move 50 steps forever"></textarea>
-    <br>
-    <button id="generateBtn">Generate Project from Prompt</button>
+            <a href="#" class="roblox-login-btn">
+                <!-- Using an external link for the Roblox icon -->
+                <img src="https://i.imgur.com/vAgI16H.png" alt="Roblox Logo">
+                <span>LOG IN WITH ROBLOX</span>
+            </a>
 
-    <div class="example">
-        <p><strong>Try these prompts:</strong></p>
-        <ul>
-            <li><code>move 50 steps</code></li>
-            <li><code>turn right 90 degrees</code></li>
-            <li><code>say Hello World for 4 seconds</code></li>
-            <li><code>wait 3 seconds forever</code> (will put a wait block inside a forever loop)</li>
-        </ul>
-    </div>
+            <div class="separator">
+                <span>OR</span>
+            </div>
 
+            <form>
+                <div class="input-group">
+                    <input type="text" id="username" required>
+                    <label for="username">Email or Username</label>
+                </div>
+                <div class="input-group">
+                    <input type="password" id="password" required>
+                    <label for="password">Password</label>
+                </div>
 
-    <script>
-    // ==================================================================
-    //  1. THE BLOCK LIBRARY (Our Data-Driven "Database")
-    // ==================================================================
-    // Here we define every block our AI can understand.
-    // 'keywords': Words that must be in the prompt.
-    // 'opcode': The internal Scratch block name.
-    // 'inputs': An object describing how to get values for the block's inputs.
-    // 'regex': A Regular Expression to extract the value from the text.
-    // ==================================================================
-    const BLOCK_LIBRARY = {
-        'move': {
-            keywords: ['move'],
-            opcode: 'motion_movesteps',
-            inputs: { 'STEPS': { type: 'number', regex: /move\s+([0-9.-]+)/, default: '10' } }
-        },
-        'turn_right': {
-            keywords: ['turn', 'right'],
-            opcode: 'motion_turnright',
-            inputs: { 'DEGREES': { type: 'number', regex: /turn\s+right\s+([0-9.-]+)/, default: '15' } }
-        },
-        'turn_left': {
-            keywords: ['turn', 'left'],
-            opcode: 'motion_turnleft',
-            inputs: { 'DEGREES': { type: 'number', regex: /turn\s+left\s+([0-9.-]+)/, default: '15' } }
-        },
-        'wait': {
-            keywords: ['wait'],
-            opcode: 'control_wait',
-            inputs: { 'DURATION': { type: 'number', regex: /wait\s+([0-9.-]+)/, default: '1' } }
-        },
-        'say_for_secs': {
-            keywords: ['say', 'for'],
-            opcode: 'looks_sayforsecs',
-            inputs: {
-                'MESSAGE': { type: 'string', regex: /say\s+(.+?)\s+for/, default: 'Hello!' },
-                'SECS': { type: 'number', regex: /for\s+([0-9.-]+)\s+sec/, default: '2' }
-            }
-        },
-        'forever': {
-            keywords: ['forever', 'loop'],
-            isWrapper: true, // This is a special C-shaped block
-            opcode: 'control_forever',
-            inputs: { 'SUBSTACK': { type: 'stack' } }
-        }
-    };
-
-
-    // ==================================================================
-    //  2. THE "AI" PARSER
-    // ==================================================================
-    // This function reads the text prompt and converts it into a structured
-    // list of commands for our generator to use.
-    // ==================================================================
-    function parsePrompt(prompt) {
-        prompt = prompt.toLowerCase().trim();
-        const foundBlocks = [];
-        let wrapper = null;
-
-        // First, check for a wrapper block (like "forever")
-        for (const key in BLOCK_LIBRARY) {
-            const blockDef = BLOCK_LIBRARY[key];
-            if (blockDef.isWrapper) {
-                if (blockDef.keywords.every(kw => prompt.includes(kw))) {
-                    wrapper = { opcode: blockDef.opcode, inputs: blockDef.inputs };
-                    // Remove the wrapper keyword from the prompt to find what's *inside* it
-                    blockDef.keywords.forEach(kw => prompt = prompt.replace(kw, '').trim());
-                    break;
-                }
-            }
-        }
-
-        // Now, find the main command block
-        for (const key in BLOCK_LIBRARY) {
-            const blockDef = BLOCK_LIBRARY[key];
-            if (blockDef.isWrapper) continue; // Skip wrappers this time
-
-            if (blockDef.keywords.every(kw => prompt.includes(kw))) {
-                const parsedBlock = {
-                    opcode: blockDef.opcode,
-                    values: {}
-                };
-
-                // Use the regex from the library to extract values
-                for (const inputName in blockDef.inputs) {
-                    const inputDef = blockDef.inputs[inputName];
-                    const match = prompt.match(inputDef.regex);
-                    parsedBlock.values[inputName] = match ? match[1] : inputDef.default;
-                }
-                foundBlocks.push(parsedBlock);
-                break; // For now, we only support one command inside the prompt
-            }
-        }
-        
-        if (foundBlocks.length === 0 && !wrapper) {
-            return null; // Nothing was understood
-        }
-        
-        return { blocks: foundBlocks, wrapper: wrapper };
-    }
-
-
-    // ==================================================================
-    //  3. THE PROJECT.JSON GENERATOR
-    // ==================================================================
-    // This function takes the parsed command list and builds the actual
-    // Scratch project file structure.
-    // ==================================================================
-    function generateProject(parsedCommands) {
-        const projectJson = { /* Base project structure is the same */
-            "targets": [
-                { "isStage": true, "name": "Stage", "variables": {}, "lists": {}, "broadcasts": {}, "blocks": {}, "comments": {}, "currentCostume": 0, "costumes": [ { "name": "backdrop1", "assetId": "cd21514d0531fdffb22204e0ec5ed84a", "md5ext": "cd21514d0531fdffb22204e0ec5ed84a.svg", "dataFormat": "svg", "rotationCenterX": 240, "rotationCenterY": 180 } ], "sounds": [], "volume": 100, "layerOrder": 0, "tempo": 60, "videoTransparency": 50, "videoState": "on", "textToSpeechLanguage": null },
-                { "isStage": false, "name": "Sprite1", "variables": {}, "lists": {}, "broadcasts": {}, "blocks": {}, "comments": {}, "currentCostume": 0, "costumes": [ { "name": "costume1", "assetId": "bcf454acf82e4504149f7ffe07081dbc", "md5ext": "bcf454acf82e4504149f7ffe07081dbc.svg", "dataFormat": "svg", "rotationCenterX": 48, "rotationCenterY": 50 }, { "name": "costume2", "assetId": "0fb9be3e8397c98333ecda8c7244ae6a", "md5ext": "0fb9be3e8397c98333ecda8c7244ae6a.svg", "dataFormat": "svg", "rotationCenterX": 46, "rotationCenterY": 53 } ], "sounds": [ { "name": "Meow", "assetId": "83c36d806dc92327b9e7049a565c6bff", "md5ext": "83c36d806dc92327b9e7049a565c6bff.mp3", "dataFormat": "mp3", "rate": 48000, "sampleCount": 40681 } ], "volume": 100, "layerOrder": 1, "visible": true, "x": 0, "y": 0, "size": 100, "direction": 90, "draggable": false, "rotationStyle": "all around" }
-            ], "monitors": [], "extensions": [], "meta": { "semver": "3.0.0", "vm": "0.2.0-prerelease.20220712202534", "agent": "AI Coder v0.3" }
-        };
-
-        const blocks = {};
-        const sprite = projectJson.targets[1];
-
-        // Start with the green flag block
-        const topBlockId = `when_flag_clicked_${Date.now()}`;
-        blocks[topBlockId] = { "opcode": "event_whenflagclicked", "next": null, "parent": null, "inputs": {}, "fields": {}, "shadow": false, "topLevel": true, "x": 100, "y": 100 };
-        
-        let parentId = topBlockId; // The next block will attach to the flag
-        let lastBlockId = topBlockId;
-
-        // If a wrapper (like 'forever') was found, create it first
-        if (parsedCommands.wrapper) {
-            const wrapperBlockId = `wrapper_${Date.now()}`;
-            blocks[wrapperBlockId] = {
-                "opcode": parsedCommands.wrapper.opcode, "next": null, "parent": parentId,
-                "inputs": { "SUBSTACK": [2, null] }, "fields": {}, "shadow": false
-            };
-            blocks[parentId].next = wrapperBlockId; // Link flag to wrapper
-            parentId = wrapperBlockId; // Now, blocks go INSIDE the wrapper
-            lastBlockId = null; // We reset lastBlockId for the inner stack
-        }
-
-        // Create the blocks from the prompt
-        parsedCommands.blocks.forEach((cmd, index) => {
-            const blockId = `${cmd.opcode}_${Date.now()}_${index}`;
-            const blockInputs = {};
-
-            // Format the inputs correctly for project.json
-            for (const inputName in cmd.values) {
-                const blockDef = Object.values(BLOCK_LIBRARY).find(b => b.opcode === cmd.opcode);
-                const inputType = blockDef.inputs[inputName].type;
-                const value = cmd.values[inputName];
+                <a href="#" class="forgot-password">Forgot Password?</a>
                 
-                if (inputType === 'number') {
-                    blockInputs[inputName] = [1, [4, value]]; // Number input
-                } else if (inputType === 'string') {
-                    blockInputs[inputName] = [1, [10, value]]; // String input
-                }
-            }
+                <button type="submit" class="login-btn">LOG IN</button>
+            </form>
 
-            blocks[blockId] = {
-                "opcode": cmd.opcode, "next": null, "parent": parentId,
-                "inputs": blockInputs, "fields": {}, "shadow": false
-            };
+            <p class="signup-link">
+                Need an account? <a href="#">Sign Up</a>
+            </p>
 
-            if (lastBlockId) {
-                blocks[lastBlockId].next = blockId; // Link previous block to this one
-            } else {
-                // This is the first block inside a wrapper
-                blocks[parentId].inputs.SUBSTACK = [2, blockId];
-            }
-            lastBlockId = blockId;
-        });
-
-        sprite.blocks = blocks;
-        
-        // --- File Generation (same as before) ---
-        const zip = new JSZip();
-        zip.file("project.json", JSON.stringify(projectJson));
-        zip.generateAsync({ type: "blob" }).then(blob => {
-            const a = document.createElement("a");
-            document.body.appendChild(a);
-            a.style.display = "none";
-            const url = window.URL.createObjectURL(blob);
-            a.href = url;
-            a.download = "ai-project.sb3";
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        });
-    }
-
-    // Main event listener
-    generateBtn.addEventListener('click', () => {
-        const promptText = document.getElementById('promptInput').value;
-        if (!promptText) {
-            alert("Please enter a prompt!");
-            return;
-        }
-        
-        const parsedCommands = parsePrompt(promptText);
-        
-        if (parsedCommands) {
-            generateProject(parsedCommands);
-        } else {
-            alert("Sorry, I don't understand that command. Please try one of the examples.");
-        }
-    });
-
-    </script>
+        </div>
+    </div>
 </body>
 </html>
