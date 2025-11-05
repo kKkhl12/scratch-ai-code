@@ -1,29 +1,45 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>AI Scratch Coder v0.1 (Corrected)</title>
+    <title>AI Scratch Coder v0.2</title>
     <!-- We need the JSZip library to create the .sb3 (zip) file -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: auto; }
+        h1 { color: #4CAF50; }
+        textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { background-color: #4CAF50; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        button:hover { background-color: #45a049; }
+        strong { color: #d9534f; }
+    </style>
 </head>
 <body>
 
-    <h1>AI Scratch Coder - Step 1</h1>
-    <p>Click the button to generate an .sb3 file with a single "forever" block attached to a "when green flag clicked" event.</p>
-    <button id="generateBtn">Generate Scratch Project</button>
+    <h1>AI Scratch Coder - Step 2: The Prompt</h1>
+    <p>Type your command in the box below. Try <strong>"forever"</strong> or <strong>"move 30 steps forever"</strong>.</p>
+    
+    <textarea id="promptInput" rows="4" cols="50" placeholder="e.g., move 10 steps forever"></textarea>
+    <br>
+    <button id="generateBtn">Generate Project from Prompt</button>
 
     <script>
-        // Find the button in our HTML
         const generateBtn = document.getElementById('generateBtn');
 
-        // Add an event listener to run our code when the button is clicked
-        generateBtn.addEventListener('click', generateProject);
+        // When the button is clicked...
+        generateBtn.addEventListener('click', () => {
+            // 1. Get the prompt text from the textarea
+            const promptText = document.getElementById('promptInput').value.toLowerCase().trim();
+            
+            // 2. Generate the project based on the prompt
+            if (promptText) {
+                generateProject(promptText);
+            } else {
+                alert("Please enter a prompt!");
+            }
+        });
 
-        function generateProject() {
-            // --- 1. Define the Blocks ---
-            const topBlockId = "event_whenflagclicked_1";
-            const foreverBlockId = "control_forever_1";
-
-            // --- 2. Create the project.json Structure ---
+        function generateProject(prompt) {
+            // --- Base project.json structure ---
             const projectJson = {
                 "targets": [
                     {
@@ -32,28 +48,7 @@
                         "sounds": [], "volume": 100, "layerOrder": 0, "tempo": 60, "videoTransparency": 50, "videoState": "on", "textToSpeechLanguage": null
                     },
                     {
-                        "isStage": false, "name": "Sprite1", "variables": {}, "lists": {}, "broadcasts": {},
-                        "blocks": {
-                            [topBlockId]: {
-                                "opcode": "event_whenflagclicked",
-                                "next": foreverBlockId,
-                                "parent": null,
-                                "inputs": {}, "fields": {}, "shadow": false, "topLevel": true, "x": 100, "y": 100
-                            },
-                            [foreverBlockId]: {
-                                "opcode": "control_forever",
-                                "next": null,
-                                "parent": topBlockId,
-                                "inputs": {
-                                    // *** THIS IS THE CORRECTED LINE ***
-                                    // [2, ...] indicates a SUBSTACK (a stack of blocks).
-                                    // null means the stack is empty.
-                                    "SUBSTACK": [2, null] 
-                                },
-                                "fields": {}, "shadow": false, "topLevel": false
-                            }
-                        },
-                        "comments": {}, "currentCostume": 0,
+                        "isStage": false, "name": "Sprite1", "variables": {}, "lists": {}, "broadcasts": {}, "blocks": {}, "comments": {}, "currentCostume": 0,
                         "costumes": [
                             { "name": "costume1", "assetId": "bcf454acf82e4504149f7ffe07081dbc", "md5ext": "bcf454acf82e4504149f7ffe07081dbc.svg", "dataFormat": "svg", "rotationCenterX": 48, "rotationCenterY": 50 },
                             { "name": "costume2", "assetId": "0fb9be3e8397c98333ecda8c7244ae6a", "md5ext": "0fb9be3e8397c98333ecda8c7244ae6a.svg", "dataFormat": "svg", "rotationCenterX": 46, "rotationCenterY": 53 }
@@ -63,18 +58,73 @@
                     }
                 ],
                 "monitors": [], "extensions": [],
-                "meta": { "semver": "3.0.0", "vm": "0.2.0-prerelease.20220712202534", "agent": "AI Coder v0.1" }
+                "meta": { "semver": "3.0.0", "vm": "0.2.0-prerelease.20220712202534", "agent": "AI Coder v0.2" }
             };
 
-            // --- 3. Create the .sb3 file using JSZip ---
+            // --- "AI" Parsing and Block Generation ---
+            
+            const blocks = {};
+            const sprite = projectJson.targets[1];
+
+            // Every script starts with a "when green flag clicked" hat block.
+            const topBlockId = `event_whenflagclicked_${Date.now()}`;
+            blocks[topBlockId] = {
+                "opcode": "event_whenflagclicked", "next": null, "parent": null, "inputs": {}, "fields": {}, "shadow": false, "topLevel": true, "x": 100, "y": 100
+            };
+            
+            let lastBlockId = topBlockId; // This tracks the end of our main script chain
+
+            // *** THIS IS OUR "AI" BRAIN ***
+            if (prompt.includes("move") && prompt.includes("forever")) {
+                // --- Case 1: "move X steps forever" ---
+                
+                const stepsMatch = prompt.match(/move\s+(\d+)/);
+                const steps = stepsMatch ? stepsMatch[1] : "10";
+
+                const foreverBlockId = `control_forever_${Date.now()}`;
+                blocks[foreverBlockId] = {
+                    "opcode": "control_forever", "next": null, "parent": lastBlockId,
+                    "inputs": { "SUBSTACK": [2, null] },
+                    "fields": {}, "shadow": false, "topLevel": false
+                };
+                blocks[lastBlockId].next = foreverBlockId;
+
+                const moveBlockId = `motion_movesteps_${Date.now()}`;
+                blocks[moveBlockId] = {
+                    "opcode": "motion_movesteps", "next": null, "parent": foreverBlockId,
+                    "inputs": { "STEPS": [1, [4, steps]] }, // [1,...] for value input, [4,...] for number
+                    "fields": {}, "shadow": false, "topLevel": false
+                };
+
+                // Put the move block *inside* the forever block's substack
+                blocks[foreverBlockId].inputs.SUBSTACK = [2, moveBlockId];
+
+            } else if (prompt.includes("forever")) {
+                // --- Case 2: Just "forever" ---
+                const foreverBlockId = `control_forever_${Date.now()}`;
+                blocks[foreverBlockId] = {
+                    "opcode": "control_forever", "next": null, "parent": lastBlockId,
+                    "inputs": { "SUBSTACK": [2, null] },
+                    "fields": {}, "shadow": false, "topLevel": false
+                };
+                blocks[lastBlockId].next = foreverBlockId;
+
+            } else {
+                alert("Sorry, I don't understand that prompt yet. Try 'forever' or 'move 10 steps forever'.");
+                return;
+            }
+
+            // Add our generated blocks to the sprite in the JSON
+            sprite.blocks = blocks;
+
+            // --- File Generation (using JSZip) ---
             const zip = new JSZip();
             zip.file("project.json", JSON.stringify(projectJson));
             
-            // --- 4. Generate and Download the file ---
             zip.generateAsync({ type: "blob" }).then(blob => {
                 const a = document.createElement("a");
                 document.body.appendChild(a);
-                a.style = "display: none";
+                a.style.display = "none";
                 const url = window.URL.createObjectURL(blob);
                 a.href = url;
                 a.download = "ai-project.sb3";
