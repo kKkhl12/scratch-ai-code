@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Scratch Coder v0.1</title>
+    <!-- We need the JSZip library to create the .sb3 (zip) file -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+
+    <h1>AI Scratch Coder - Step 1</h1>
+    <p>Click the button to generate an .sb3 file with a single "forever" block attached to a "when green flag clicked" event.</p>
+    <button id="generateBtn">Generate Scratch Project</button>
+
+    <script>
+        // Find the button in our HTML
+        const generateBtn = document.getElementById('generateBtn');
+
+        // Add an event listener to run our code when the button is clicked
+        generateBtn.addEventListener('click', generateProject);
+
+        function generateProject() {
+            // --- 1. Define the Blocks ---
+            // Every block needs a unique ID. These can be random strings.
+            const topBlockId = "event_whenflagclicked_1"; // The "when green flag clicked" block
+            const foreverBlockId = "control_forever_1";   // The "forever" block
+
+            // --- 2. Create the project.json Structure ---
+            // This is a JavaScript object that represents the JSON structure.
+            const projectJson = {
+                "targets": [
+                    {
+                        "isStage": true, // This is the Stage target
+                        "name": "Stage",
+                        "variables": {}, "lists": {}, "broadcasts": {}, "blocks": {}, "comments": {},
+                        "currentCostume": 0,
+                        "costumes": [
+                            { "name": "backdrop1", "assetId": "cd21514d0531fdffb22204e0ec5ed84a", "md5ext": "cd21514d0531fdffb22204e0ec5ed84a.svg", "dataFormat": "svg", "rotationCenterX": 240, "rotationCenterY": 180 }
+                        ],
+                        "sounds": [],
+                        "volume": 100, "layerOrder": 0, "tempo": 60, "videoTransparency": 50, "videoState": "on", "textToSpeechLanguage": null
+                    },
+                    {
+                        "isStage": false, // This is our Sprite (the Cat)
+                        "name": "Sprite1",
+                        "variables": {}, "lists": {}, "broadcasts": {},
+                        // This is the most important part: the blocks!
+                        "blocks": {
+                            [topBlockId]: {
+                                "opcode": "event_whenflagclicked",
+                                "next": foreverBlockId, // This block's "next" is the forever block
+                                "parent": null, // This is a "hat" block, it has no parent
+                                "inputs": {}, "fields": {}, "shadow": false, "topLevel": true, "x": 100, "y": 100
+                            },
+                            [foreverBlockId]: {
+                                "opcode": "control_forever",
+                                "next": null, // The forever block has no block after it
+                                "parent": topBlockId, // Its parent is the "when flag clicked" block
+                                "inputs": {
+                                    // The "SUBSTACK" input is where the blocks *inside* the forever loop go.
+                                    // It's empty for now.
+                                    "SUBSTACK": [1, null] 
+                                },
+                                "fields": {}, "shadow": false, "topLevel": false
+                            }
+                        },
+                        "comments": {}, "currentCostume": 0,
+                        "costumes": [
+                            { "name": "costume1", "assetId": "bcf454acf82e4504149f7ffe07081dbc", "md5ext": "bcf454acf82e4504149f7ffe07081dbc.svg", "dataFormat": "svg", "rotationCenterX": 48, "rotationCenterY": 50 },
+                            { "name": "costume2", "assetId": "0fb9be3e8397c98333ecda8c7244ae6a", "md5ext": "0fb9be3e8397c98333ecda8c7244ae6a.svg", "dataFormat": "svg", "rotationCenterX": 46, "rotationCenterY": 53 }
+                        ],
+                        "sounds": [
+                            { "name": "Meow", "assetId": "83c36d806dc92327b9e7049a565c6bff", "md5ext": "83c36d806dc92327b9e7049a565c6bff.mp3", "dataFormat": "mp3", "rate": 48000, "sampleCount": 40681 }
+                        ],
+                        "volume": 100, "layerOrder": 1, "visible": true, "x": 0, "y": 0, "size": 100, "direction": 90, "draggable": false, "rotationStyle": "all around"
+                    }
+                ],
+                "monitors": [],
+                "extensions": [], // We don't have any extensions yet
+                "meta": {
+                    "semver": "3.0.0",
+                    "vm": "0.2.0-prerelease.20220712202534", // You can keep this static
+                    "agent": "AI Coder v0.1" // A fun way to see who made the project!
+                }
+            };
+
+            // --- 3. Create the .sb3 file using JSZip ---
+            const zip = new JSZip();
+
+            // Add the project.json file to the zip. We use JSON.stringify to convert the object to text.
+            zip.file("project.json", JSON.stringify(projectJson));
+            
+            // --- 4. Generate and Download the file ---
+            zip.generateAsync({ type: "blob" }).then(blob => {
+                // Create a temporary link element
+                const a = document.createElement("a");
+                document.body.appendChild(a);
+                a.style = "display: 
